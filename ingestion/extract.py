@@ -1,37 +1,48 @@
 import yfinance as yf
 import pandas as pd
+import os
 from datetime import datetime
 
-def extraer_forex_eurusd():
-    print("💱 Conectando con Yahoo Finance para extraer historial 2024-2025...")
+def extraer_historial_forex(ticker="EURUSD=X", start_date="2024-01-01", end_date="2025-12-31"):
+    """
+    Función profesional para extraer datos de Forex.
+    Incluye manejo de errores y columnas de auditoría para el Data Warehouse.
+    """
+    print(f"💱 [INGESTA] Conectando con Yahoo Finance para extraer {ticker}...")
     
-    ticker = "EURUSD=X"
-    
-    # Fijamos el rango exacto de fechas para agarrar los dos años enteros
-    df_historico = yf.download(tickers=ticker, start="2024-01-01", end="2025-12-31", interval="1d")
-    
-    if not df_historico.empty:
-        df = df_historico.reset_index()
+    try:
+        # Extraemos el bloque de datos de internet
+        df_raw = yf.download(tickers=ticker, start=start_date, end=end_date, interval="1d")
         
-        # Limpiamos las columnas para quedarnos con lo importante
+        if df_raw.empty:
+            print("⚠️ [ALERTA] La API no devolvió datos para este rango de fechas.")
+            return None
+            
+        # 🧹 LIMPIEZA Y ESTRUCTURACIÓN DE DATOS (Data Wrangling)
+        df = df_raw.reset_index()
+        
+        # Nos aseguramos de mapear las columnas correctas
         df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-        df["extraido_en"] = datetime.now()
         
-        # Guardamos el CSV local con los dos años completos
-        df.to_csv("ingestion/datos_eurusd.csv", index=False)
+        # METRICAS DE AUDITORÍA: Clave para cualquier Data Lake profesional
+        df["par_divisas"] = ticker
+        df["fecha_ejecucion"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        df["usuario_sistema"] = "pipeline_bot"
         
-        print(f"✅ ¡Datos históricos extraídos con éxito!")
-        print(f"📊 Total de días de mercado guardados: {len(df)} filas.")
-        print("\n⏳ Primeros días del 2024:")
-        print(df.head(3))
-        print("\n⏳ Últimos días del 2025:")
-        print(df.tail(3))
+        # Crear la carpeta de destino si por alguna razón no existe
+        os.makedirs("ingestion", exist_ok=True)
+        path_destino = "ingestion/datos_eurusd.csv"
+        
+        # Guardamos el dataset crudo
+        df.to_csv(path_destino, index=False)
+        print(f"✅ [ÉXITO] Archivo guardado localmente en: {path_destino}")
+        print(f"📊 Dataset listo con {len(df)} filas y {len(df.columns)} columnas.")
+        
         return df
-    else:
-        print("❌ No se pudieron obtener datos. Revisá las fechas o la conexión.")
+        
+    except Exception as e:
+        print(f"❌ [ERROR CRÍTICO] Falló la ingesta de datos: {str(e)}")
         return None
 
 if __name__ == "__main__":
-    extraer_forex_eurusd()
-
-
+    extraer_historial_forex()
