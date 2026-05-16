@@ -2,6 +2,8 @@ import yfinance as yf
 import pandas as pd
 import os
 from datetime import datetime
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def extraer_historial_forex(ticker="EURUSD=X", start_date="2024-01-01", end_date="2025-12-31"):
     """
